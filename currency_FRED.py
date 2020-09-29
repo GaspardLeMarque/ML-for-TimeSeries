@@ -41,10 +41,47 @@ df_merged.rename(
             'EXSFUS': 'USD/ZAR'     #South African Rand
             }, inplace=True)
 
-pd.DataFrame.to_csv(df_merged, 'monthly_all.csv', sep=',', na_rep='.', index='DATE')
+pd.DataFrame.to_csv(df_merged, 'monthly_all.csv', sep=',', index='DATE')
 
+import matplotlib.pyplot as plt
 
+df = pd.read_csv('monthly_all.csv', header=0, index_col=0, parse_dates=True)
+#header=0 to be able to replace col names
+print(df.head())
+df.dtypes #Check the data types of columns
+data = {'Mean':df.mean(), 
+        'Median':df.median(), 
+        'Min':df.min(), 
+        'Max':df.max()}
+df1 = pd.DataFrame(data) 
+df2 = pd.DataFrame(df.quantile([0.25,0.75])).transpose()
 
+sixNumSmry = df1.join(df2)
 
+#AUD/USD pair
+df1 = df[['AUD/USD']] 
+df1.plot(label='AUD', legend=True)
+plt.xlabel("Months")
+plt.ylabel("Price")
+plt.show()  
+plt.clf() 
 
+#Build a histogram to inspect the distribution
+df1.pct_change().plot.hist(bins=50)
+plt.xlabel('Monthly percent change')
+plt.show() #Skewed distribution
 
+#Correlations between pairs
+corr = df.corr()
+print(corr)
+
+#Plot heatmap of a correlation matrix
+plt.subplots(figsize=(8,8))
+sns.heatmap(corr, annot= True, linewidths=.5, annot_kws = {"size": 7})
+plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10)    
+plt.tight_layout() 
+plt.show()
+
+#Choose the pairs with the high correlation
+corrList = corr.unstack().sort_values(kind="quicksort")
+print(corrList[-29:-23]) #Pairs with corr more than 0.95
