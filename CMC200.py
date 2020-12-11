@@ -62,3 +62,42 @@ sns.regplot('5d_close_pct', '5d_close_future_pct', df) #No autocorrelation
 #Split into repeatable train and test sets
 df_train, df_test = train_test_split(df['Adj Close'], test_size=0.33, random_state=123)
 print(df_train.shape, df_test.shape)
+
+#Create targets and features
+feature_names = ['5d_close_pct'] 
+
+for n in [14, 30, 50, 200]:
+    
+    #Create the moving average indicator and normalize it by Adj Close
+    df['ma' + str(n)] = talib.SMA(df['Adj Close'].values,
+                              timeperiod=n) / df['Adj Close']
+    #Create the RSI indicator
+    df['rsi' + str(n)] = talib.RSI(df['Adj Close'].values, timeperiod=n)
+    
+    #Add RSI and moving average to the feature name list
+    feature_names = feature_names + ['ma' + str(n), 'rsi' + str(n)]
+
+print(feature_names)
+
+#Drop all NA values
+df.isnull().sum() #New cols have nulls
+df = df.dropna()
+
+features = df[feature_names]
+targets = df['5d_close_future_pct']
+
+#Create DataFrame from target column and feature columns
+feature_and_target_cols = ['5d_close_future_pct'] + feature_names
+feat_targ_df = df[feature_and_target_cols]
+
+#Plot a correlation matrix of features and targets
+corr = feat_targ_df.corr()
+print(corr)
+
+plt.subplots(figsize=(8,5))
+sns.heatmap(corr, annot= True, annot_kws = {"size": 10})
+# fix ticklabel directions and size
+plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10)  
+# fits plot area to the plot, "tightly"
+plt.tight_layout()  
+plt.show()
