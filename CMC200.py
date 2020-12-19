@@ -6,6 +6,9 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
+import talib #add features
+import statsmodels.api as sm
+import numpy as np
 
 start_date = '2018-12-31'
 end_date = str(datetime.now().strftime('%Y-%m-%d'))
@@ -59,9 +62,10 @@ sns.pairplot(df, vars=['5d_close_pct', '5d_close_future_pct'], diag_kind = 'kde'
 #Regression plot
 sns.regplot('5d_close_pct', '5d_close_future_pct', df) #No autocorrelation
 
-#Split into repeatable train and test sets
-df_train, df_test = train_test_split(df['Adj Close'], test_size=0.33, random_state=123)
-print(df_train.shape, df_test.shape)
+#Returns 
+df['5d_close_pct'].plot()
+plt.clf()
+df['5d_close_future_pct'].plot()
 
 #Create targets and features
 feature_names = ['5d_close_pct'] 
@@ -100,4 +104,47 @@ sns.heatmap(corr, annot= True, annot_kws = {"size": 10})
 plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10)  
 # fits plot area to the plot, "tightly"
 plt.tight_layout()  
+plt.show()
+
+#Create a scatter plot of the most highly correlated variable with the target
+#Check the heatmap first and then create a plot
+sns.regplot(df['ma50'], df['5d_close_future_pct']) #Highest corr = 0.18 (future ~ ma50)
+
+#Linear model
+#Add a constant to the features
+linear_features = sm.add_constant(features)
+
+#Split the whole DF into repeatable train and test sets (as an option)
+df_train, df_test = train_test_split(df['Adj Close'], test_size=0.33, random_state=123)
+print(df_train.shape, df_test.shape)
+
+#Create a size for the training set that is 85% by hand
+train_size = int(0.85 * features.shape[0])
+train_features = linear_features[:train_size]
+train_targets = targets[:train_size]
+test_features = linear_features[train_size:]
+test_targets = targets[train_size:]
+
+#Fit a linear model
+model = sm.OLS(train_targets, train_features)
+results = model.fit()  
+print(results.summary())
+
+#Features with p <= 0.05 are typically considered significantly different from 0
+print(results.pvalues) #All ftrs except rsi14 have p val <= 0.05
+
+#Make predictions from the model for train and test sets
+train_predictions = results.predict(train_features)
+test_predictions = results.predict(test_features)
+
+#Results evaluation
+#Scatter the predictions vs the targets 
+plt.scatter(train_predictions, train_targets, alpha=0.2, color='b', label='train')
+plt.scatter(test_predictions, test_targets, alpha=0.2, color='r', label='test')
+
+xmin, xmax = plt.xlim() #Add the prediction line
+plt.plot(np.arange(xmin, xmax, 0.01), np.arange(xmin, xmax, 0.01), c='k')
+plt.xlabel('predictions')
+plt.ylabel('actual')
+plt.legend()  
 plt.show()
