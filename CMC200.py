@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 import talib #add features
 import statsmodels.api as sm
 import numpy as np
+from sklearn.tree import DecisionTreeRegressor
 
 start_date = '2018-12-31'
 end_date = str(datetime.now().strftime('%Y-%m-%d'))
@@ -54,6 +55,7 @@ print(corr) #No autocorrelation
 #Scatter plot of the current 5-day percent change vs the future 5-day percent change
 plt.scatter(df['5d_close_pct'], df['5d_close_future_pct'])
 plt.show() #No autocorrelation
+plt.clf()
 
 #Create a pairplot 
 sns.pairplot(df, vars=['5d_close_pct', '5d_close_future_pct'], diag_kind = 'kde', 
@@ -99,16 +101,15 @@ corr = feat_targ_df.corr()
 print(corr)
 
 plt.subplots(figsize=(8,5))
-sns.heatmap(corr, annot= True, annot_kws = {"size": 10})
-# fix ticklabel directions and size
-plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10)  
-# fits plot area to the plot, "tightly"
+sns.heatmap(corr, annot= True, annot_kws = {"size": 8})
+plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10) #Fix ticklabel directions and size
 plt.tight_layout()  
 plt.show()
+plt.clf()
 
 #Create a scatter plot of the most highly correlated variable with the target
 #Check the heatmap first and then create a plot
-sns.regplot(df['ma50'], df['5d_close_future_pct']) #Highest corr = 0.18 (future ~ ma50)
+sns.regplot(df['ma50'], df['5d_close_future_pct']) #Highest corr = 0.18 (on 19.12)
 
 #Linear model
 #Add a constant to the features
@@ -148,3 +149,44 @@ plt.xlabel('predictions')
 plt.ylabel('actual')
 plt.legend()  
 plt.show()
+plt.clf()
+
+#Decision trees
+#Create a decision tree regression model with default arguments
+decision_tree = DecisionTreeRegressor()
+
+#Fit the model to the training features and targets
+decision_tree.fit(train_features, train_targets)
+
+#Check the score on train and test sets
+print(decision_tree.score(train_features, train_targets))
+print(decision_tree.score(test_features, test_targets))
+
+#Loop through a few different max depths and check the performance
+for d in [3, 5, 10]:
+    #Create the tree and fit it
+    decision_tree = DecisionTreeRegressor(max_depth = d) #max_depth - the N of splits in the tree
+    decision_tree.fit(train_features, train_targets)
+
+    #Print out the scores on train and test
+    print('max_depth=', str(d))
+    print(decision_tree.score(train_features, train_targets))
+    print(decision_tree.score(test_features, test_targets), '\n')
+    #Depth=10 shows the smallest value in the test set, 
+    #but the R^2 is too small, so the model is wrong
+
+#Check the results
+#Use the best max_depth of 3 to fit a decision tree
+decision_tree = DecisionTreeRegressor(max_depth=10)
+decision_tree.fit(train_features, train_targets)
+
+#Predict values for train and test
+train_predictions = decision_tree.predict(train_features)
+test_predictions = decision_tree.predict(test_features)
+
+#Scatter the predictions vs actual values
+plt.scatter(train_predictions, train_targets, label='train')
+plt.scatter(test_predictions, test_targets, label='test')
+plt.legend()
+plt.show() #There is no linear dependency in the test set
+plt.clf()
