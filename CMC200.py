@@ -6,10 +6,12 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
-import talib #add features
+import talib #Add features
 import statsmodels.api as sm
 import numpy as np
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import ParameterGrid #Tune hyperparameters
 
 start_date = '2018-12-31'
 end_date = str(datetime.now().strftime('%Y-%m-%d'))
@@ -102,7 +104,7 @@ print(corr)
 
 plt.subplots(figsize=(8,5))
 sns.heatmap(corr, annot= True, annot_kws = {"size": 8})
-plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10) #Fix ticklabel directions and size
+plt.yticks(rotation=0, size = 10); plt.xticks(rotation=90, size = 10) #Fix ticklabel directions and size  
 plt.tight_layout()  
 plt.show()
 plt.clf()
@@ -176,7 +178,7 @@ for d in [3, 5, 10]:
     #but the R^2 is too small, so the model is wrong
 
 #Check the results
-#Use the best max_depth of 3 to fit a decision tree
+#Use the best max_depth of 10 to fit a decision tree
 decision_tree = DecisionTreeRegressor(max_depth=10)
 decision_tree.fit(train_features, train_targets)
 
@@ -189,4 +191,43 @@ plt.scatter(train_predictions, train_targets, label='train')
 plt.scatter(test_predictions, test_targets, label='test')
 plt.legend()
 plt.show() #There is no linear dependency in the test set
+plt.clf()
+
+#Random forests (balance btwn high variance and high bias models)
+#Create the random forest model and fit to the training data
+rfr = RandomForestRegressor(n_estimators=200)
+rfr.fit(train_features, train_targets)
+
+#Look at the R^2 scores on train and test
+print(rfr.score(train_features, train_targets))
+print(rfr.score(test_features, test_targets)) #Unacceptably low R^2
+
+#Create a dictionary of hyperparameters to search
+grid = {'n_estimators': [200], 'max_depth': [3], 'max_features': [4, 8], 'random_state': [123]}
+test_scores = []
+
+#Loop through the parameter grid, set the hyperparameters, and save the scores
+for g in ParameterGrid(grid):
+    rfr.set_params(**g)  # ** is "unpacking" the dictionary
+    rfr.fit(train_features, train_targets)
+    test_scores.append(rfr.score(test_features, test_targets))
+
+#Find best hyperparameters from the test score and print
+best_idx = np.argmax(test_scores)
+print(test_scores[best_idx], ParameterGrid(grid)[best_idx])
+
+#Evaluate performance
+#Use the best hyperparameters from before to fit a random forest model
+rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
+rfr.fit(train_features, train_targets)
+
+#Make predictions with the model
+train_predictions = rfr.predict(train_features)
+test_predictions = rfr.predict(test_features)
+
+#Create a scatter plot with train and test actual vs predictions
+plt.scatter(train_targets, train_predictions, label='train')
+plt.scatter(test_targets, test_predictions, label='test')
+plt.legend()
+plt.show() #There is also no linear dependency in the test set
 plt.clf()
