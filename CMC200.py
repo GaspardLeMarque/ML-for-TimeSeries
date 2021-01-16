@@ -12,6 +12,7 @@ import numpy as np
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import ParameterGrid #Tune hyperparameters
+from sklearn.ensemble import GradientBoostingRegressor
 
 start_date = '2018-12-31'
 end_date = str(datetime.now().strftime('%Y-%m-%d'))
@@ -41,14 +42,15 @@ df['Adj Close'].pct_change().plot.hist(bins=100)
 plt.xlabel('Adjusted close 1-day percent change')
 plt.show()
 
-#Kernel Density Estimation
-sns.kdeplot(df['Adj Close'], shade=True)
-
 #Correlations
 #Calculate returns for the current day and for 5 days in the future
 df['5d_future_close'] = df['Adj Close'].shift(-5)
 df['5d_close_future_pct'] = df['5d_future_close'].pct_change(5)
 df['5d_close_pct'] = df['Adj Close'].pct_change(5)
+
+#Kernel Density Estimation
+sns.kdeplot(df['Adj Close'], shade=True)
+plt.clf()
 
 #Calculate the correlation matrix between returns
 corr = df[['5d_close_pct', '5d_close_future_pct']].corr()
@@ -65,6 +67,13 @@ sns.pairplot(df, vars=['5d_close_pct', '5d_close_future_pct'], diag_kind = 'kde'
 
 #Regression plot
 sns.regplot('5d_close_pct', '5d_close_future_pct', df) #No autocorrelation
+
+#Multivariate density estimation
+sns.boxplot(df['Adj Close'])
+plt.clf()
+sns.boxplot(df['5d_close_pct']) #has less variance, less right-skewed
+
+
 
 #Returns 
 df['5d_close_pct'].plot()
@@ -212,13 +221,13 @@ for g in ParameterGrid(grid):
     rfr.fit(train_features, train_targets)
     test_scores.append(rfr.score(test_features, test_targets))
 
-#Find best hyperparameters from the test score and print
+#Find best hyperparameters from the test score
 best_idx = np.argmax(test_scores)
 print(test_scores[best_idx], ParameterGrid(grid)[best_idx])
 
 #Evaluate performance
 #Use the best hyperparameters from before to fit a random forest model
-rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=42)
+rfr = RandomForestRegressor(n_estimators=200, max_depth=3, max_features=4, random_state=123)
 rfr.fit(train_features, train_targets)
 
 #Make predictions with the model
@@ -231,3 +240,16 @@ plt.scatter(test_targets, test_predictions, label='test')
 plt.legend()
 plt.show() #There is also no linear dependency in the test set
 plt.clf()
+
+#Gradient boosting model
+#Create GB model 
+gbr = GradientBoostingRegressor(max_features=4,
+                                learning_rate=0.01,
+                                n_estimators=200,
+                                subsample=0.6,
+                                random_state=123)
+gbr.fit(train_features, train_targets)
+
+print(gbr.score(train_features, train_targets))
+print(gbr.score(test_features, test_targets)) #Again the score is too low
+#Perhaps parameters are wrong
