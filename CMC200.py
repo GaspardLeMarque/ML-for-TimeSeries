@@ -13,6 +13,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import ParameterGrid #Tune hyperparameters
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.neighbors import KNeighborsRegressor
 
 start_date = '2018-12-31'
 end_date = str(datetime.now().strftime('%Y-%m-%d'))
@@ -253,3 +254,38 @@ gbr.fit(train_features, train_targets)
 print(gbr.score(train_features, train_targets))
 print(gbr.score(test_features, test_targets)) #Again the score is too low
 #Perhaps parameters are wrong
+
+#Optimize n_neighbors
+#Take a range btwn 2 and 20 neighbors
+for n in range(2, 20):
+    #Create and fit the KNN model
+    knn = KNeighborsRegressor(n_neighbors=n)
+    
+    #Fit the model to the training data
+    knn.fit(scaled_train_features, train_targets)
+    
+    #Print number of neighbors and the score to find the best value of n
+    print("n_neighbors =", n)
+    print('train, test scores')
+    print(knn.score(scaled_train_features, train_targets))
+    print(knn.score(scaled_test_features, test_targets))
+    print()  # prints a blank line
+
+#Evaluate KNN performance
+#Create the model with the last n_neighbors of 20
+knn = KNeighborsRegressor(n_neighbors=20)
+
+#Fit the model
+knn.fit(scaled_train_features, train_targets)
+
+#Get predictions for train and test sets
+train_predictions = knn.predict(scaled_train_features)
+test_predictions = knn.predict(scaled_test_features)
+
+#Plot the actual vs predicted values
+plt.scatter(train_predictions, train_targets, label='train')
+plt.scatter(test_predictions, test_targets, label='test')
+plt.legend()
+plt.show()
+#Better method of finding the best performing neighbor should be found
+#For now it's unclear which number of neighbors is worth to use
